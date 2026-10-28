@@ -1,1 +1,7 @@
-solo es prueba
+Nuevas carateristicas
+  1. integracion de cifrado y sistema de actualizaciones
+  2. mamada y media
+
+Correccion de errores
+  1. se realizo el correcto inicio de sesion para el modo operador
+  2. los cambios ahora tienen persistencia para las configuracion de admin
