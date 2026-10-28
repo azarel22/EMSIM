@@ -5,14 +5,14 @@ setlocal EnableDelayedExpansion
 title Microsoft Office Deployment Manager - Enterprise Edition
 
 :: ============================================================================
-:: VARIABLES PERSISTENTES Y CONFIGURACION GITHUB (AUTO-GUARDABLES EN ESTE .BAT)
+:: VARIABLES PERSISTENTES Y REPOSITORIO GITHUB OFICIAL (azarel22/EMSIM)
 :: ============================================================================
 set "CFG_TIMEOUT=3600"
 set "CFG_WATCHDOG=ON"
-set "APP_VERSION=5.0.1"
-set "GH_VERSION_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/version.txt"
-set "GH_CHANGELOG_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/changelog.txt"
-set "GH_SCRIPT_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/Instalador%20Pro.bat"
+set "APP_VERSION=5.0.3"
+set "GH_VERSION_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/version.txt"
+set "GH_CHANGELOG_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/changelog.txt"
+set "GH_SCRIPT_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Instalador%%20Pro.bat"
 :: ============================================================================
 
 for /F "delims=#" %%E in ('"prompt #$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%E"
@@ -62,10 +62,10 @@ call :PS_EXEC "SET_UI_FONT"
 call :PS_GET "GET_SERIAL" "" "" "BIOS_SN"
 if not defined BIOS_SN set "BIOS_SN=GENERIC-SN"
 
-:: Comprobacion de actualizaciones al iniciar
+:: Comprobacion rapida y silenciosa de actualizaciones al iniciar
 set "UPD_AVAILABLE=NO"
 set "REMOTE_VER=!APP_VERSION!"
-call :PS_GET "QUICK_UPDATE_CHECK" "!APP_VERSION!" "!GH_VERSION_URL!" "UPD_CHECK_RES"
+call :PS_GET "QUICK_UPDATE_CHECK" "!APP_VERSION!" "" "UPD_CHECK_RES"
 if defined UPD_CHECK_RES (
     for /f "tokens=1,2 delims=|" %%A in ("!UPD_CHECK_RES!") do (
         set "UPD_AVAILABLE=%%A"
@@ -131,7 +131,7 @@ echo %ESC%[?25l
 if defined PASS_INPUT set "PASS_INPUT=!PASS_INPUT: =!"
 if not defined PASS_INPUT goto FAIL_AUTH
 
-:: Validacion criptografica unificada (Detecta si es "1015" o "M4drUg4d0r")
+:: Validacion criptografica unificada (Detecta exactamente "1015" o "M4drUg4d0r")
 call :PS_GET "VERIFY_PASS" "!PASS_INPUT!" "" "AUTH_RES"
 if "!AUTH_RES!"=="ADMIN" goto LOGIN_DEV_OK
 if "!AUTH_RES!"=="USER" goto LOGIN_NORMAL_OK
@@ -273,7 +273,7 @@ if /I "!OPCION!"=="U" goto GITHUB_UPDATER
 if /I "!OPCION!"=="R" goto Rick
 if /I "!OPCION!"=="MG" goto Masgrave
 
-:: Opciones C y D siguen siendo exclusivas de ADMIN (M4drUg4d0r)
+:: Opciones C y D exclusivas de ADMIN (M4drUg4d0r)
 if /I "!AUTH_MODE!"=="ADMIN" (
     if /I "!OPCION!"=="C" goto MENU_CONFIG
     if /I "!OPCION!"=="CONFIG" goto MENU_CONFIG
@@ -461,7 +461,7 @@ echo   %C_BORDER%└────────────────────
 
 set "OTA_STATUS=ERROR"
 set "REMOTE_VER=Desconocida"
-call :PS_GET "FETCH_UPDATE_INFO" "!APP_VERSION!" "!GH_VERSION_URL!" "OTA_RAW"
+call :PS_GET "FETCH_UPDATE_INFO" "!APP_VERSION!" "" "OTA_RAW"
 if defined OTA_RAW (
     for /f "tokens=1,2 delims=|" %%A in ("!OTA_RAW!") do (
         set "OTA_STATUS=%%A"
@@ -559,7 +559,7 @@ if /I not "!AUTH_MODE!"=="ADMIN" (
 
 echo.
 call :PROGRESS_BAR "Descargando paquete de actualizacion desde GitHub..." "%C_CYAN%"
-call :PS_GET "APPLY_UPDATE" "!GH_SCRIPT_URL!" "" "APPLY_RES"
+call :PS_GET "APPLY_UPDATE" "" "" "APPLY_RES"
 
 if "!APPLY_RES!"=="OK" (
     echo.
@@ -599,7 +599,6 @@ goto MENU
 :REGISTRAR_LOG
 echo [%DATE% %TIME%] SN:!BIOS_SN! - Codigo:%~1 - Estado:%~2 >> "%~dp0actividad_sistema.log"
 exit /b
-goto MENU
 
 
 :: ============================================================================
@@ -992,7 +991,7 @@ switch ($a) {
         [System.IO.File]::WriteAllText($outF, $sn, $utf8No)
     }
 
-    # 3A. VALIDACION CRIPTOGRAFICA DE LOGIN: "1015" (USER) O "M4drUg4d0r" (ADMIN)
+    # 3A. VALIDACION CRIPTOGRAFICA EXACTA DE LOGIN: "1015" (USER) O "M4drUg4d0r" (ADMIN)
     "VERIFY_PASS" {
         $res = "FAIL"
         try {
@@ -1001,10 +1000,18 @@ switch ($a) {
                 $cleanInput = $cleanInput.Trim()
                 $inBytes = [System.Text.Encoding]::UTF8.GetBytes($cleanInput)
 
-                # Verificar si es la llave de ADMIN ("M4drUg4d0r") ofuscada con XOR 0x5A -> Base64 "F24+KAs9bh4qKA=="
-                $xAdmin = New-Object byte[] $inBytes.Length
-                for ($i = 0; $i -lt $inBytes.Length; $i++) { $xAdmin[$i] = $inBytes[$i] -bxor 0x5A }
-                if ([Convert]::ToBase64String($xAdmin) -eq "F24+KAs9bh4qKA==") {
+                # Vector ASCII + 17 para "M4drUg4d0r":
+                # M(77)+17=94, 4(52)+17=69, d(100)+17=117, r(114)+17=131, U(85)+17=102,
+                # g(103)+17=120, 4(52)+17=69, d(100)+17=117, 0(48)+17=65, r(114)+17=131
+                $admVec = @(94, 69, 117, 131, 102, 120, 69, 117, 65, 131)
+                $isAdm  = ($inBytes.Length -eq $admVec.Length)
+                if ($isAdm) {
+                    for ($i = 0; $i -lt $inBytes.Length; $i++) {
+                        if (($inBytes[$i] + 17) -ne $admVec[$i]) { $isAdm = $false; break }
+                    }
+                }
+
+                if ($isAdm) {
                     $res = "ADMIN"
                 } else {
                     # Verificar si desencripta la boveda KMS ("1015")
@@ -1023,19 +1030,24 @@ switch ($a) {
         [System.IO.File]::WriteAllText($outF, $res, $utf8No)
     }
 
-    # 3B. VALIDACION DE LLAVE DE ACTUALIZACION PARA OPERADORES ("1015Update")
+    # 3B. VALIDACION EXACTA DE LLAVE DE ACTUALIZACION ("1015Update")
     "VERIFY_UPD_PASS" {
         $res = "FAIL"
         try {
             $cleanInput = [string]$arg1
             if (-not [string]::IsNullOrWhiteSpace($cleanInput)) {
                 $inBytes = [System.Text.Encoding]::UTF8.GetBytes($cleanInput.Trim())
-                # "1015Update" ofuscado con XOR 0x5A -> Base64 "a2trbw8qPjsoPw=="
-                $xUpd = New-Object byte[] $inBytes.Length
-                for ($i = 0; $i -lt $inBytes.Length; $i++) { $xUpd[$i] = $inBytes[$i] -bxor 0x5A }
-                if ([Convert]::ToBase64String($xUpd) -eq "a2trbw8qPjsoPw==") {
-                    $res = "OK"
+                # Vector ASCII + 17 para "1015Update":
+                # 1(49)+17=66, 0(48)+17=65, 1(49)+17=66, 5(53)+17=70, U(85)+17=102,
+                # p(112)+17=129, d(100)+17=117, a(97)+17=114, t(116)+17=133, e(101)+17=118
+                $updVec = @(66, 65, 66, 70, 102, 129, 117, 114, 133, 118)
+                $isUpd  = ($inBytes.Length -eq $updVec.Length)
+                if ($isUpd) {
+                    for ($i = 0; $i -lt $inBytes.Length; $i++) {
+                        if (($inBytes[$i] + 17) -ne $updVec[$i]) { $isUpd = $false; break }
+                    }
                 }
+                if ($isUpd) { $res = "OK" }
             }
         } catch {}
         [System.IO.File]::WriteAllText($outF, $res, $utf8No)
@@ -1121,12 +1133,12 @@ while (`$true) {
         Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -WindowStyle Hidden -EncodedCommand $encoded" -WindowStyle Hidden
     }
 
-    # 7A. COMPROBACION RAPIDA AL INICIAR EL SCRIPT (TIMEOUT 3s)
+    # 7A. COMPROBACION RAPIDA AL INICIAR EL SCRIPT (LEE URL DIRECTO DE $env:GH_VERSION_URL)
     "QUICK_UPDATE_CHECK" {
         $result = "NO|$arg1"
         try {
             $localVer = [version]$arg1
-            $verUrl   = $arg2
+            $verUrl   = $env:GH_VERSION_URL
             if ($verUrl -notmatch "TU_USUARIO") {
                 $cbUrl = "$verUrl`?t=" + [DateTimeOffset]::Now.ToUnixTimeSeconds()
                 $remoteStr = (Invoke-WebRequest -Uri $cbUrl -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop).Content.Trim()
@@ -1145,7 +1157,7 @@ while (`$true) {
     "FETCH_UPDATE_INFO" {
         if (Test-Path $clCache) { Remove-Item $clCache -Force -ErrorAction SilentlyContinue }
         $localVer = [version]$arg1
-        $verUrl   = $arg2
+        $verUrl   = $env:GH_VERSION_URL
         $clUrl    = $env:GH_CHANGELOG_URL
 
         if ($verUrl -match "TU_USUARIO") {
@@ -1163,7 +1175,7 @@ while (`$true) {
                 $clText = (Invoke-WebRequest -Uri "$clUrl`?t=$ts" -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop).Content.Trim()
                 if ([string]::IsNullOrWhiteSpace($clText)) { $clText = "Sin detalles adicionales en changelog.txt." }
             } catch {
-                $clText = "No se encontro el archivo changelog.txt en el repositorio."
+                $clText = "No se encontro el archivo changelog.txt en el repositorio azarel22/EMSIM."
             }
             [System.IO.File]::WriteAllText($clCache, $clText, $utf8No)
 
@@ -1178,18 +1190,28 @@ while (`$true) {
         }
     }
 
-    # 7C. DESCARGAR Y SOBRESCRIBIR EL PROPIO ARCHIVO .BAT EN CALIENTE
+    # 7C. DESCARGAR Y SOBRESCRIBIR EL PROPIO ARCHIVO .BAT DESDE azarel22/EMSIM
     "APPLY_UPDATE" {
         $res = "FAIL"
         try {
-            $scriptUrl = $arg1
-            $ts = [DateTimeOffset]::Now.ToUnixTimeSeconds()
-            $resp = Invoke-WebRequest -Uri "$scriptUrl`?t=$ts" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
-            
-            $newContent = $resp.Content
-            if ($resp.RawContentStream) {
-                $bytes = $resp.RawContentStream.ToArray()
-                $newContent = [System.Text.Encoding]::UTF8.GetString($bytes)
+            # Leer directamente de variable de entorno para no perder el %20 en argumentos CMD
+            $scriptUrl = $env:GH_SCRIPT_URL
+            if ([string]::IsNullOrWhiteSpace($scriptUrl)) {
+                $scriptUrl = "https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Instalador%20Pro.bat"
+            }
+            # Asegurar que cualquier espacio literal este codificado como %20
+            $scriptUrl = $scriptUrl.Replace(" ", "%20")
+
+            $ts   = [DateTimeOffset]::Now.ToUnixTimeSeconds()
+            $wc   = New-Object System.Net.WebClient
+            $wc.Encoding = [System.Text.Encoding]::UTF8
+            $wc.Headers.Add("Cache-Control", "no-cache")
+            $rawBytes   = $wc.DownloadData("$scriptUrl`?t=$ts")
+            $newContent = [System.Text.Encoding]::UTF8.GetString($rawBytes)
+
+            # Quitar BOM si existe al inicio del archivo descargado
+            if ($newContent.Length -gt 0 -and [int]$newContent[0] -eq 65279) {
+                $newContent = $newContent.Substring(1)
             }
 
             if ($newContent -match "<#\s*:") {
