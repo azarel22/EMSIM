@@ -1,7 +1,11 @@
-Nuevas carateristicas
-  1. integracion de cifrado y sistema de actualizaciones
-  2. mamada y media
+______________________________________________________
+NUEVAS CARACTERISTICAS
+——————————————————————————————————————————————————————
+  Nuevo modulo de actualizacion
+  Nuevos Accesos
 
-Correccion de errores
-  1. se realizo el correcto inicio de sesion para el modo operador
-  2. los cambios ahora tienen persistencia para las configuracion de admin
+______________________________________________________
+CORRECCION DE ERRORES
+——————————————————————————————————————————————————————
+  Desplzamiento de la tabla en el aviso de nueva
+    version
