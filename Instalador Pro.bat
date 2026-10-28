@@ -12,7 +12,7 @@ set "CFG_WATCHDOG=ON"
 set "APP_VERSION=5.0.1"
 set "GH_VERSION_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/version.txt"
 set "GH_CHANGELOG_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/changelog.txt"
-set "GH_SCRIPT_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/Instalador%%20Pro.bat"
+set "GH_SCRIPT_URL=https://raw.githubusercontent.com/azarel22/EMSIM/main/Instalador%20Pro.bat"
 :: ============================================================================
 
 for /F "delims=#" %%E in ('"prompt #$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%E"
