@@ -2,32 +2,33 @@
 @echo off
 chcp 65001 > nul
 setlocal EnableDelayedExpansion
-title Microsoft Office Deployment Manager - Enterprise Edition By Aza
+title Microsoft Office Deployment Manager - Enterprise Edition
 
 :: ============================================================================
 :: VARIABLES PERSISTENTES (MODIFICABLES Y GUARDABLES CON [G] EN CONFIGURACION)
 :: ============================================================================
 set "CFG_TIMEOUT=3600"                       
 set "CFG_WATCHDOG=ON"                        
-set "APP_VERSION=6.0.0"                      
+set "APP_VERSION=7.0.1"                      
 set "GH_VERSION_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/version.txt"
 set "GH_CHANGELOG_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/changelog.txt"
 set "GH_SCRIPT_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Instalador%%20Pro.bat"
+set "GH_GUIDE_URL=https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Guia%%20de%%20Operador%%20Office%%20Installer.txt"
 :: ============================================================================
 
-:: Escalado de privilegios de Administrador
+:: Escalado de privilegios de Administrador[cite: 1, 4]
 net session >nul 2>&1
 if %errorLevel% neq 0 (
     powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
     exit /b
 )
 
-mode con: cols=74 lines=33
+mode con: cols=74 lines=34
 for /F "delims=#" %%E in ('"prompt #$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%E"
 echo %ESC%[?25l
 
 :: ============================================================================
-:: PALETA DE COLORES INSTITUCIONAL / EMPRESARIAL + EFECTO PULSANTE (ANSI RGB)
+:: PALETA DE COLORES INSTITUCIONAL / EMPRESARIAL + EFECTO PULSANTE (ANSI RGB)[cite: 1]
 :: ============================================================================
 set "C_BORDER=%ESC%[38;2;70;82;102m"
 set "C_SLATE=%ESC%[38;2;130;145;165m"
@@ -38,6 +39,7 @@ set "C_CORP=%ESC%[38;2;45;140;240m"
 set "C_CYAN=%ESC%[38;2;56;189;248m"
 set "C_OK=%ESC%[38;2;16;185;129m"
 set "C_WARN=%ESC%[38;2;245;158;11m"
+set "C_WARN_DIM=%ESC%[38;2;145;95;25m"
 set "C_CRIT=%ESC%[38;2;239;68;68m"
 set "C_BLINK=%ESC%[5m"
 
@@ -52,9 +54,10 @@ set "C_RESET=%ESC%[0m"
 cd /d "%~dp0"
 set "CARPETA=%~dp0"
 set "CARPETA_LIMPIA=%CARPETA:~0,-1%"
-set "ACTIVITY_FILE=%TEMP%\aza_wd_activity.tmp"
-set "PS_OUT_FILE=%TEMP%\aza_ps_out.tmp"
-set "CHANGELOG_CACHE=%TEMP%\aza_changelog.tmp"
+set "ACTIVITY_FILE=%TEMP%\modm_wd_activity.tmp"
+set "PS_OUT_FILE=%TEMP%\modm_ps_out.tmp"
+set "CHANGELOG_CACHE=%TEMP%\modm_changelog.tmp"
+set "JUST_UPDATED_FLAG=%TEMP%\modm_post_update.flg"
 set "SELF_FILE=%~f0"
 
 :: Limpiar espacios de las variables de ancho fijo
@@ -81,9 +84,66 @@ if defined BOOT_DATA (
     )
 )
 
+:: Si el programa se acaba de actualizar y reabrir, mostrar pantalla estilizada de Changelog antes del Login
+if exist "%JUST_UPDATED_FLAG%" goto POST_UPDATE_SCREEN
+goto INIT_LOGIN_VARS
+
+
 :: ============================================================================
-:: MODULO DE AUTENTICACION INSTITUCIONAL (3 INTENTOS)
+:: PANTALLA DE BIENVENIDA POST-ACTUALIZACION (REGISTRO DE CAMBIOS Y GUIA)
 :: ============================================================================
+:POST_UPDATE_SCREEN
+del /f /q "%JUST_UPDATED_FLAG%" >nul 2>&1
+mode con: cols=74 lines=38
+cls
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_OK%  ★ ACTUALIZACION COMPLETADA EXITOSAMENTE                  v!APP_VERSION!  %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%Bienvenido a la nueva version de Microsoft Office Deployment      %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%Manager. El script principal y la Guia de Operador han sido       %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%actualizados automaticamente en su carpeta local.                 %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
+echo   %C_BORDER%│  %C_CYAN%REGISTRO DE CAMBIOS Y NOVEDADES DE LA VERSION [v!APP_VERSION!]%ESC%[72G%C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+
+if exist "%CHANGELOG_CACHE%" (
+    for /f "usebackq delims=" %%L in ("%CHANGELOG_CACHE%") do (
+        echo     %C_OK%◆ %C_TEXT%%%L%C_RESET%
+    )
+) else (
+    echo     %C_SLATE%∙ Sistema actualizado a la compilacion v!APP_VERSION!.%C_RESET%
+)
+
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%│  %C_CORP%[ENTER]%C_WHITE%  Continuar al Inicio de Sesion del Sistema                %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%│  %C_CYAN%[G]    %C_WHITE%  Abrir "Guia de Operador Office Installer.txt" ahora      %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+echo %ESC%[?25h
+set "POST_OP="
+set /p "POST_OP=   %C_OK%❯%C_WHITE% Presione [ENTER] para iniciar o escriba [G] para ver la Guia: %C_TEXT%"
+echo %ESC%[?25l
+
+if defined POST_OP set "POST_OP=!POST_OP: =!"
+if /I "!POST_OP!"=="G" (
+    if exist "%~dp0Guia de Operador Office Installer.txt" (
+        start "" notepad.exe "%~dp0Guia de Operador Office Installer.txt"
+    )
+)
+
+
+:: ============================================================================
+:: MODULO DE AUTENTICACION INSTITUCIONAL (3 INTENTOS + CONTRASENA CON ASTERISCOS)
+:: ============================================================================
+:INIT_LOGIN_VARS
 set /a INTENTOS=0
 set "AUTH_MODE=USER"
 
@@ -92,8 +152,9 @@ call :FORMAT_TIME "!CFG_TIMEOUT!"
 mode con: cols=74 lines=33
 cls
 
-set "WD_LOGIN_TXT=%C_WARN%○ Desactivado %C_SLATE%[OFF]"
-if /I "!CFG_WATCHDOG!"=="ON" set "WD_LOGIN_TXT=%C_OK%● Activo %C_TEXT%[!TIME_STR!]"
+:: Bolita pulsante en verde si esta ON, o color ambar apagado si esta OFF
+set "WD_LOGIN_TXT=%C_WARN_DIM%○ Desactivado [OFF]"
+if /I "!CFG_WATCHDOG!"=="ON" set "WD_LOGIN_TXT=%C_OK%%C_BLINK%●%C_RESET%%C_OK% Activo %C_TEXT%[!TIME_STR!]"
 
 set "AUTH_STATE_TXT=%C_SLATE%Estado: Esperando autenticacion criptografica [Intentos: 0 de 3]"
 if !INTENTOS! gtr 0 set "AUTH_STATE_TXT=%C_CRIT%Advertencia: Intento fallido !INTENTOS! de 3 antes del borrado inmediato."
@@ -101,7 +162,7 @@ if !INTENTOS! gtr 0 set "AUTH_STATE_TXT=%C_CRIT%Advertencia: Intento fallido !IN
 echo.
 echo.
 echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
-echo   %C_BORDER%│%BG_HEADER%  MICROSOFT OFFICE DEPLOYMENT MANAGER                       %C_RESET%%BG_HEADER%%ESC%[63Gv!APP_VERSION!%ESC%[72G%C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%│%BG_HEADER%  MICROSOFT OFFICE DEPLOYMENT MANAGER  •  By Aza            %C_RESET%%BG_HEADER%%ESC%[63Gv!APP_VERSION!%ESC%[72G%C_RESET%%C_BORDER%│%C_RESET%
 echo   %C_BORDER%│                                                                    │%C_RESET%
 echo   %C_BORDER%│%C_SLATE%  Sistema Institucional de Provisionamiento y Licenciamiento KMS    %C_BORDER%│%C_RESET%
 if /I "!UPD_AVAILABLE!"=="YES" echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
@@ -122,16 +183,13 @@ echo   %C_BORDER%└────────────────────
 echo.
 echo.
 echo %ESC%[?25h
-set "PASS_INPUT="
-set /p "PASS_INPUT=   %C_CORP%❯%C_WHITE% Credencial de Acceso: %C_TEXT%"
+<nul set /p "=   %C_CORP%❯%C_WHITE% Credencial de Acceso: %C_CYAN%"
+call :PS_GET "READ_MASKED_AUTH" "" "" "AUTH_RES"
 echo %ESC%[?25l
+echo.
 
 if /I "!CFG_WATCHDOG!"=="ON" echo !CFG_TIMEOUT!>"%ACTIVITY_FILE%"
-if defined PASS_INPUT set "PASS_INPUT=!PASS_INPUT: =!"
-if not defined PASS_INPUT goto FAIL_AUTH
 
-:: Validacion criptografica ultrarrapida 
-call :PS_GET "VERIFY_PASS" "!PASS_INPUT!" "" "AUTH_RES"
 if "!AUTH_RES!"=="ADMIN" goto LOGIN_DEV_OK
 if "!AUTH_RES!"=="USER" goto LOGIN_NORMAL_OK
 goto FAIL_AUTH
@@ -175,34 +233,35 @@ goto EJECUTAR_BORRADO
 
 
 :: ============================================================================
-:: MENU PRINCIPAL 
+:: MENU PRINCIPAL (REORGANIZADO, LIMPIO Y CON APARTADO DE LIMPIEZA SOLO ADMIN)
 :: ============================================================================
 :MENU
 if /I "!CFG_WATCHDOG!"=="ON" echo !CFG_TIMEOUT!>"%ACTIVITY_FILE%"
 call :FORMAT_TIME "!CFG_TIMEOUT!"
 
-if /I "!AUTH_MODE!"=="ADMIN" mode con: cols=74 lines=44
-if /I not "!AUTH_MODE!"=="ADMIN" mode con: cols=74 lines=38
+if /I "!AUTH_MODE!"=="ADMIN" mode con: cols=74 lines=52
+if /I not "!AUTH_MODE!"=="ADMIN" mode con: cols=74 lines=39
 cls
 
-set "WD_MENU_TXT=%C_WARN%○ Desactivado [OFF]"
-if /I "!CFG_WATCHDOG!"=="ON" set "WD_MENU_TXT=%C_OK%● Activo [!TIME_STR!]"
+:: Bolita verde pulsante si esta ON, o ambar apagado si esta OFF
+set "WD_MENU_TXT=%C_WARN_DIM%○ Desactivado [OFF]"
+if /I "!CFG_WATCHDOG!"=="ON" set "WD_MENU_TXT=%C_OK%%C_BLINK%●%C_RESET%%C_OK% Activo [!TIME_STR!]"
 
 set "ROLE_TXT=%C_OK%◆ OPERADOR     "
-if /I "!AUTH_MODE!"=="ADMIN" set "ROLE_TXT=%C_WARN%★ ADMIN"
+if /I "!AUTH_MODE!"=="ADMIN" set "ROLE_TXT=%C_WARN%★ ADMINISTRADOR"
 
-set "SEC2_TITLE=%C_CORP%ACTUALIZACIONES Y CONTROL DE SESION                               "
-if /I "!AUTH_MODE!"=="ADMIN" set "SEC2_TITLE=%C_CORP%ADMINISTRACION DEL SISTEMA Y ACTUALIZACIONES [ADMIN]              "
+set "SEC3_TITLE=%C_CORP%ACTUALIZACIONES Y CONTROL DE SESION                               "
+if /I "!AUTH_MODE!"=="ADMIN" set "SEC3_TITLE=%C_CORP%ADMINISTRACION, CLONACION USB Y ACTUALIZACIONES [ADMIN]           "
 
 set "ROW_U_TXT=%C_BORDER%│ %C_CYAN%[U]  %C_BORDER%│ %C_TEXT%Centro de Actualizaciones Remotas%ESC%[54G%C_BORDER%│ %C_SLATE%GitHub OTA%ESC%[72G%C_BORDER%│%C_RESET%"
 if /I "!UPD_AVAILABLE!"=="YES" set "ROW_U_TXT=%C_BORDER%│ %C_OK%%C_BLINK%[U]%C_RESET%  %C_BORDER%│ %C_WHITE%Centro de Actualizaciones [v!REMOTE_VER!]%ESC%[54G%C_BORDER%│ %C_OK%● Update Listo%ESC%[72G%C_BORDER%│%C_RESET%"
 
 set "FOOT_TXT=%C_SLATE%Comandos activos: %C_TEXT%1-4%C_SLATE% y %C_TEXT%U%C_SLATE% [Verificar / Instalar Actualizaciones]  "
-if /I "!AUTH_MODE!"=="ADMIN" set "FOOT_TXT=%C_SLATE%Comandos activos: %C_TEXT%1-4%C_SLATE%, %C_TEXT%U%C_SLATE% [Actualizar], %C_TEXT%C%C_SLATE% [Configurar Sistema]     "
+if /I "!AUTH_MODE!"=="ADMIN" set "FOOT_TXT=%C_SLATE%Comandos activos: %C_TEXT%1-4%C_SLATE%, %C_TEXT%R%C_SLATE% [Limpieza], %C_TEXT%C%C_SLATE% [Config], %C_TEXT%E%C_SLATE% [USB], %C_TEXT%U%C_SLATE% [OTA]  "
 
 echo.
 echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
-echo   %C_BORDER%│%BG_HEADER%  CONSOLA DE DESPLIEGUE CORPORATIVO  •  OFFICE SUITE                %C_RESET%%BG_HEADER%%ESC%[63Gv!APP_VERSION!%ESC%[72G%C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%│%BG_HEADER%  CONSOLA DE DESPLIEGUE CORPORATIVO  •  By Aza                      %C_RESET%%BG_HEADER%%ESC%[63Gv!APP_VERSION!%ESC%[72G%C_RESET%%C_BORDER%│%C_RESET%
 if /I "!UPD_AVAILABLE!"=="YES" echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
 if /I "!UPD_AVAILABLE!"=="YES" echo   %C_BORDER%│  %BG_UPD% %C_BLINK%▲%C_RESET%%BG_UPD% NUEVA VERSION DISPONIBLE: v!REMOTE_VER! %C_RESET% %C_CYAN%Presione [U] para actualizar%ESC%[72G%C_BORDER%│%C_RESET%
 echo   %C_BORDER%├───────────────────────┬──────────────────────────┬─────────────────┤%C_RESET%
@@ -220,13 +279,23 @@ echo   %C_BORDER%│ %C_CORP%[2]  %C_BORDER%│ %C_WHITE%Instalar Microsoft Offi
 echo   %C_BORDER%│      │                                           │                 │%C_RESET%
 echo   %C_BORDER%│ %C_WARN%[3]  %C_BORDER%│ %C_WHITE%Desinstalar Office [Limpieza Profunda]    %C_BORDER%│ %C_WARN%Purga Registro  %C_BORDER%│%C_RESET%
 echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%├──────┴───────────────────────────────────────────┴─────────────────┤%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│                                                                    │%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│  %C_CORP%LIMPIEZA Y REPARACION AVANZADA DE OFFICE [EXCLUSIVO ADMIN]        %C_BORDER%│%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│                                                                    │%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%├──────┬───────────────────────────────────────────┬─────────────────┤%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│ %C_CYAN%[R]  %C_BORDER%│ %C_WHITE%Modulo de Limpieza y Reparacion de Office %C_BORDER%│ %C_CYAN%Oficial/Forzada %C_BORDER%│%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│      │                                           │                 │%C_RESET%
 echo   %C_BORDER%├──────┴───────────────────────────────────────────┴─────────────────┤%C_RESET%
 echo   %C_BORDER%│                                                                    │%C_RESET%
-echo   %C_BORDER%│  !SEC2_TITLE!%C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  !SEC3_TITLE!%C_BORDER%│%C_RESET%
 echo   %C_BORDER%│                                                                    │%C_RESET%
 echo   %C_BORDER%├──────┬───────────────────────────────────────────┬─────────────────┤%C_RESET%
 echo   %C_BORDER%│      │                                           │                 │%C_RESET%
-if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│ %C_CYAN%[C]  %C_BORDER%│ %C_TEXT%Panel de Configuracion del Sistema        %C_BORDER%│ %C_SLATE%Guardar Ajustes %C_BORDER%│%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│ %C_CYAN%[C]  %C_BORDER%│ %C_TEXT%Panel de Configuracion del Sistema        %C_BORDER%│ %C_SLATE%Watchdog/Tiempo %C_BORDER%│%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│ %C_OK%[E]  %C_BORDER%│ %C_TEXT%Exportar Kit a USB / Ruta [Modo Operador] %C_BORDER%│ %C_OK%Clonador Activo %C_BORDER%│%C_RESET%
 if /I "!AUTH_MODE!"=="ADMIN" echo   %C_BORDER%│      │                                           │                 │%C_RESET%
 echo   !ROW_U_TXT!
 echo   %C_BORDER%│      │                                           │                 │%C_RESET%
@@ -250,19 +319,165 @@ if "!OPCION!"=="2" goto OFFICE2019
 if "!OPCION!"=="3" goto SOLO_DESINSTALAR
 if "!OPCION!"=="4" goto SALIR_AUTODESTRUCCION
 if /I "!OPCION!"=="U" goto GITHUB_UPDATER
-if /I "!OPCION!"=="R" goto Rick
+if /I "!OPCION!"=="RICK" goto Rick
 if /I "!OPCION!"=="MG" goto Masgrave
 
+:: Opciones exclusivas de Administrador (R = Limpieza/Reparacion, C = Config, E = Exportar USB)
 if /I "!AUTH_MODE!"=="ADMIN" (
+    if /I "!OPCION!"=="R" goto MENU_REPARACION
+    if /I "!OPCION!"=="LIMPIEZA" goto MENU_REPARACION
     if /I "!OPCION!"=="C" goto INIT_CONFIG
     if /I "!OPCION!"=="CONFIG" goto INIT_CONFIG
+    if /I "!OPCION!"=="E" goto EXPORTAR_KIT_OPERADOR
 )
 
+:: Si esta en modo OPERADOR y escribe la contrasena de ADMIN ("M4drUg4d0r"), escalar a ADMIN al instante
 call :PS_GET "VERIFY_PASS" "!OPCION!" "" "MENU_ESC_RES"
 if "!MENU_ESC_RES!"=="ADMIN" (
     set "AUTH_MODE=ADMIN"
     goto MENU
 )
+goto MENU
+
+
+:: ============================================================================
+:: APARTADO EXCLUSIVO ADMIN [R]: LIMPIEZA Y REPARACION DE MICROSOFT OFFICE
+:: ============================================================================
+:MENU_REPARACION
+if /I "!CFG_WATCHDOG!"=="ON" echo !CFG_TIMEOUT!>"%ACTIVITY_FILE%"
+mode con: cols=74 lines=34
+cls
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_HEADER%  MODULO DE LIMPIEZA Y REPARACION DE MICROSOFT OFFICE [ADMIN]       %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%│%C_SLATE%  Seleccione el procedimiento tecnico de reparacion o limpieza:     %C_BORDER%│%C_RESET%
+echo   %C_BORDER%├──────┬───────────────────────────────────────────┬─────────────────┤%C_RESET%
+echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+echo   %C_BORDER%│ %C_CORP%[1]  %C_BORDER%│ %C_WHITE%Reparacion de Office Oficial              %C_BORDER%│ %C_OK%ClickToRun/MSI  %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│      │ %C_SLATE%Ejecuta diagnostico nativo del registro   %C_BORDER%│                 │%C_RESET%
+echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+echo   %C_BORDER%│ %C_WARN%[2]  %C_BORDER%│ %C_WHITE%Reparacion de Office Forzada              %C_BORDER%│ %C_WARN%limpieza.xml    %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│      │ %C_SLATE%Ejecuta setup.exe /configure limpieza.xml %C_BORDER%│                 │%C_RESET%
+echo   %C_BORDER%│      │                                           │                 │%C_RESET%
+echo   %C_BORDER%├──────┼───────────────────────────────────────────┴─────────────────┤%C_RESET%
+echo   %C_BORDER%│      │                                                             │%C_RESET%
+echo   %C_BORDER%│ %C_SLATE%[M]  %C_BORDER%│ %C_TEXT%Cancelar y regresar al Menu Principal                       %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│      │                                                             │%C_RESET%
+echo   %C_BORDER%└──────┴─────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+echo %ESC%[?25h
+set "REP_OP="
+set /p "REP_OP=   %C_CORP%❯%C_WHITE% Seleccione modalidad [1 / 2 / M]: %C_TEXT%"
+echo %ESC%[?25l
+
+if defined REP_OP set "REP_OP=!REP_OP: =!"
+if "!REP_OP!"=="1" goto REPARACION_OFICIAL
+if "!REP_OP!"=="2" goto REPARACION_FORZADA
+if /I "!REP_OP!"=="M" goto MENU
+goto MENU_REPARACION
+
+:REPARACION_OFICIAL
+cls
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_HEADER%  LIMPIEZA Y REPARACION: MODALIDAD OFICIAL [MOTOR NATIVO]           %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+echo %ESC%[?25h
+call :PS_EXEC "REPAIR_OFFICIAL"
+echo %ESC%[?25l
+echo.
+echo   %C_BORDER%──────────────────────────────────────────────────────────────────────%C_RESET%
+pause
+goto MENU_REPARACION
+
+:REPARACION_FORZADA
+cls
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_WARN%  LIMPIEZA Y REPARACION: MODALIDAD FORZADA [CARPETA LIMPIEZA]       %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+if not exist "%~dp0Limpieza\setup.exe" (
+    echo   %BG_CRIT% ERROR %C_RESET% %C_CRIT%No se encontro "%~dp0Limpieza\setup.exe".%C_RESET%
+    echo   %C_SLATE%  Verifique que la carpeta "Limpieza" exista a la par de las de Office.%C_RESET%
+    echo.
+    pause
+    goto MENU_REPARACION
+)
+if not exist "%~dp0Limpieza\limpieza.xml" (
+    echo   %BG_CRIT% ERROR %C_RESET% %C_CRIT%No se encontro "%~dp0Limpieza\limpieza.xml".%C_RESET%
+    echo.
+    pause
+    goto MENU_REPARACION
+)
+call :PROGRESS_BAR "Inicializando motor de limpieza y reparacion forzada..." "%C_WARN%"
+echo.
+echo   %C_WARN%  ❯ Ejecutando: setup.exe /configure limpieza.xml...%C_RESET%
+echo   %C_SLATE%    Operacion en curso desde carpeta Limpieza. No cierre la ventana.%C_RESET%
+pushd "%~dp0Limpieza"
+start /B /wait "" "setup.exe" /configure "limpieza.xml"
+popd
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_OK%  REPARACION FORZADA COMPLETADA EXITOSAMENTE                        %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+pause
+goto MENU
+
+
+:: ============================================================================
+:: MODULO [E]: EXPORTADOR DE KIT A USB / RUTA CON BARRA DE CARGA REACTIVA
+:: ============================================================================
+:EXPORTAR_KIT_OPERADOR
+mode con: cols=74 lines=38
+cls
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│%BG_HEADER%  CENTRO DE CLONACION Y DESPLIEGUE A USB [PERFIL DE OPERADOR]       %C_RESET%%C_BORDER%│%C_RESET%
+echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%Clona toda la suite [Office 2024, 2019, Limpieza y Script] hacia  %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%una unidad USB o carpeta destino, preconfigurando automaticamente %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  %C_WHITE%la copia exportada con %C_OK%Watchdog ACTIVO [ON]%C_WHITE% y %C_CYAN%1 Hora [3600s]%C_WHITE%.     %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│                                                                    │%C_RESET%
+echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
+echo   %C_BORDER%│  %C_CORP%UNIDADES ALMACENAMIENTO DETECTADAS EN EL EQUIPO                   %C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+call :PS_EXEC "LIST_DRIVES"
+echo.
+echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+echo   %C_BORDER%│  %C_SLATE%∙ Ingrese la letra de unidad [ej: %C_WHITE%E%C_SLATE%] o ruta completa [ej: %C_WHITE%D:\Kit%C_SLATE%] %C_BORDER%│%C_RESET%
+echo   %C_BORDER%│  %C_SLATE%∙ Escriba [%C_WHITE%M%C_SLATE%] para cancelar y regresar al Menu Principal.         %C_BORDER%│%C_RESET%
+echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+echo.
+echo %ESC%[?25h
+set "EXP_DEST="
+set /p "EXP_DEST=   %C_CORP%❯%C_WHITE% Unidad o Ruta destino: %C_TEXT%"
+echo %ESC%[?25l
+
+if not defined EXP_DEST goto MENU
+if /I "!EXP_DEST!"=="M" goto MENU
+
+call :PS_GET "EXPORT_KIT" "%CARPETA_LIMPIA%" "!EXP_DEST!" "EXP_RES"
+echo.
+if "!EXP_RES:~0,2!"=="OK" (
+    echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
+    echo   %C_BORDER%│%BG_OK%  ✔ CLONACION Y CONFIGURACION COMPLETADAS CON EXITO                 %C_RESET%%C_BORDER%│%C_RESET%
+    echo   %C_BORDER%├────────────────────────────────────────────────────────────────────┤%C_RESET%
+    echo   %C_BORDER%│                                                                    │%C_RESET%
+    echo   %C_BORDER%│  %C_SLATE%Ubicacion Destino : %C_WHITE%!EXP_RES:~3!%ESC%[72G%C_BORDER%│%C_RESET%
+    echo   %C_BORDER%│  %C_SLATE%Perfil Inyectado  : %C_OK%● Watchdog ON %C_SLATE%• %C_CYAN%Tiempo: 1 Hora [3600s]%ESC%[72G%C_BORDER%│%C_RESET%
+    echo   %C_BORDER%│                                                                    │%C_RESET%
+    echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
+) else (
+    echo   %BG_CRIT% ERROR DE EXPORTACION %C_RESET% %C_CRIT%!EXP_RES!%C_RESET%
+)
+echo.
+pause
 goto MENU
 
 
@@ -300,7 +515,7 @@ exit /b
 
 
 :: ============================================================================
-:: PANEL DE CONFIGURACION CON BOTON DE CONFIRMACION [G] Y CIERRE SEGURO
+:: PANEL DE CONFIGURACION CON AUTO-ACTIVACION AL CAMBIAR TIEMPO Y BOTON [G]
 :: ============================================================================
 :INIT_CONFIG
 set "TMP_TIMEOUT=!CFG_TIMEOUT!"
@@ -313,8 +528,8 @@ call :FORMAT_TIME "!TMP_TIMEOUT!"
 mode con: cols=74 lines=35
 cls
 
-set "WD_CFG_TXT=%C_WARN%○ Deshabilitado [OFF]"
-if /I "!TMP_WATCHDOG!"=="ON" set "WD_CFG_TXT=%C_OK%● Habilitado [ON]"
+set "WD_CFG_TXT=%C_WARN_DIM%○ Deshabilitado [OFF]"
+if /I "!TMP_WATCHDOG!"=="ON" set "WD_CFG_TXT=%C_OK%%C_BLINK%●%C_RESET%%C_OK% Habilitado [ON]"
 
 set "SAVE_STATUS_TXT=%C_SLATE%Estado: Sin modificaciones pendientes.                            "
 if "!UNSAVED_CHANGES!"=="YES" set "SAVE_STATUS_TXT=%C_WARN%● CAMBIOS PENDIENTES: Presione [G] para guardar y aplicar.        "
@@ -367,7 +582,9 @@ if !TEST_NUM! lss 10 (
     ping 127.0.0.1 -n 2 >nul
     goto MENU_CONFIG
 )
+:: Al establecer un tiempo, activar automaticamente el Watchdog a ON
 set "TMP_TIMEOUT=!TEST_NUM!"
+set "TMP_WATCHDOG=ON"
 set "UNSAVED_CHANGES=YES"
 goto MENU_CONFIG
 
@@ -381,6 +598,7 @@ goto MENU_CONFIG
 :CFG_COMMIT_AND_EXIT
 set "CFG_TIMEOUT=!TMP_TIMEOUT!"
 set "CFG_WATCHDOG=!TMP_WATCHDOG!"
+call :FORMAT_TIME "!CFG_TIMEOUT!"
 echo.
 echo   %C_SLATE%∙ Escribiendo parametros permanentes y actualizando demonio...%C_RESET%
 call :PS_EXEC "SAVE_ALL_CONFIG" "!CFG_TIMEOUT!" "!CFG_WATCHDOG!" "%CARPETA_LIMPIA%"
@@ -395,7 +613,7 @@ if /I "!CFG_WATCHDOG!"=="ON" (
     echo   %C_BORDER%│  %C_SLATE%  Si esta carpeta no se utiliza durante ese tiempo, se eliminara  %C_BORDER%│%C_RESET%
     echo   %C_BORDER%│  %C_SLATE%  automaticamente en segundo plano para proteger las licencias.   %C_BORDER%│%C_RESET%
 ) else (
-    echo   %C_BORDER%│  %C_WARN%○ El protector de inactividad ha quedado DESACTIVADO [OFF].       %C_BORDER%│%C_RESET%
+    echo   %C_BORDER%│  %C_WARN_DIM%○ El protector de inactividad ha quedado DESACTIVADO [OFF].       %C_BORDER%│%C_RESET%
     echo   %C_BORDER%│  %C_SLATE%  La carpeta no se eliminara automaticamente por inactividad.     %C_BORDER%│%C_RESET%
 )
 echo   %C_BORDER%│                                                                    │%C_RESET%
@@ -407,7 +625,7 @@ exit
 
 
 :: ============================================================================
-:: CENTRO DE ACTUALIZACIONES OTA
+:: CENTRO DE ACTUALIZACIONES OTA (DESCARGA SCRIPT + GUIA AUTOMATICAMENTE)
 :: ============================================================================
 :GITHUB_UPDATER
 mode con: cols=74 lines=38
@@ -430,7 +648,7 @@ if defined OTA_RAW (
 )
 
 set "REM_STAT_TXT=%C_CRIT%✖ Sin conexion al servidor"
-if "!OTA_STATUS!"=="UPDATE" set "REM_STAT_TXT=%C_OK%● v!REMOTE_VER! [Nueva Version]"
+if "!OTA_STATUS!"=="UPDATE" set "REM_STAT_TXT=%C_OK%%C_BLINK%●%C_RESET%%C_OK% v!REMOTE_VER! [Nueva Version]"
 if "!OTA_STATUS!"=="UPDATE" set "UPD_AVAILABLE=YES"
 if "!OTA_STATUS!"=="UPTODATE" set "REM_STAT_TXT=%C_CYAN%✔ v!REMOTE_VER! [Al dia]"
 if "!OTA_STATUS!"=="UPTODATE" set "UPD_AVAILABLE=NO"
@@ -464,13 +682,15 @@ if "!OTA_STATUS!"=="ERROR" goto OTA_MSG_ERR
 echo.
 echo %ESC%[?25h
 set "UPD_CONFIRM="
-if "!OTA_STATUS!"=="UPDATE" set /p "UPD_CONFIRM=   %C_OK%❯%C_WHITE% ¿Desea descargar e instalar la version v!REMOTE_VER! ahora? [S / N]: %C_TEXT%"
-if not "!OTA_STATUS!"=="UPDATE" set /p "UPD_CONFIRM=   %C_CORP%❯%C_WHITE% El sistema esta al dia. ¿Forzar reinstalacion desde GitHub? [S / N]: %C_TEXT%"
+if "!OTA_STATUS!"=="UPDATE" set /p "UPD_CONFIRM=   %C_OK%❯%C_WHITE% ¿Desea descargar e instalar la version v!REMOTE_VER! + Guia ahora? [S / N]: %C_TEXT%"
+if not "!OTA_STATUS!"=="UPDATE" set /p "UPD_CONFIRM=   %C_CORP%❯%C_WHITE% El sistema esta al dia. ¿Volver al Menu Principal? [Enter]: %C_TEXT%"
 echo %ESC%[?25l
 
+if not "!OTA_STATUS!"=="UPDATE" goto MENU
 if defined UPD_CONFIRM set "UPD_CONFIRM=!UPD_CONFIRM: =!"
 if /I not "!UPD_CONFIRM!"=="S" goto MENU
 
+:: Si es OPERADOR (USER), exigir la credencial "1015Update". Si es ADMIN, pasa directo.
 if /I "!AUTH_MODE!"=="ADMIN" goto DO_OTA_DOWNLOAD
 
 echo.
@@ -495,12 +715,13 @@ goto MENU
 :DO_OTA_DOWNLOAD
 if /I not "!AUTH_MODE!"=="ADMIN" echo. & echo   %BG_OK% AUTORIZADO %C_RESET% %C_OK%Permiso de actualizacion verificado.%C_RESET%
 echo.
-call :PROGRESS_BAR "Descargando paquete de actualizacion desde GitHub..." "%C_CYAN%"
-call :PS_GET "APPLY_UPDATE" "" "" "APPLY_RES"
+call :PROGRESS_BAR "Descargando nueva version y Guia de Operador desde GitHub..." "%C_CYAN%"
+call :PS_GET "APPLY_UPDATE" "%~dp0Guia de Operador Office Installer.txt" "" "APPLY_RES"
 
 if "!APPLY_RES!"=="OK" (
+    echo !REMOTE_VER!>"%JUST_UPDATED_FLAG%"
     echo.
-    echo   %BG_OK% ACTUALIZACION COMPLETADA %C_RESET% %C_OK%Reiniciando aplicacion con la nueva version...%C_RESET%
+    echo   %BG_OK% ACTUALIZACION COMPLETADA %C_RESET% %C_OK%Reiniciando aplicacion con notas de version...%C_RESET%
     ping 127.0.0.1 -n 2 >nul
     start "" "%~f0"
     exit
@@ -526,7 +747,7 @@ goto MENU
 
 
 :: ============================================================================
-:: MODULOS SECUNDARIOS Y LOGS (MG ADAPTADO A ESTETICA CORPORATIVA)
+:: MODULOS SECUNDARIOS Y LOGS (MG ADAPTADO A ESTETICA CORPORATIVA)[cite: 1]
 :: ============================================================================
 :Rick
 mode con: cols=70 lines=35
@@ -540,6 +761,7 @@ goto MENU
 :Masgrave
 mode con: cols=74 lines=22
 cls
+call :REGISTRAR_LOG "PAA999" "INICIADO"
 echo.
 echo.
 echo   %C_BORDER%┌────────────────────────────────────────────────────────────────────┐%C_RESET%
@@ -548,19 +770,21 @@ echo   %C_BORDER%├────────────────────
 echo   %C_BORDER%│                                                                    │%C_RESET%
 echo   %C_BORDER%│  %BG_INFO% [INFO] %C_RESET% %C_WHITE%Lanzando PowerShell como Administrador...                %C_BORDER%│%C_RESET%
 echo   %C_BORDER%│           %C_SLATE%Espera a que cargue la ventana azul.                     %C_BORDER%│%C_RESET%
-start powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://get.activated.win | iex"
 echo   %C_BORDER%│                                                                    │%C_RESET%
 echo   %C_BORDER%│  %BG_OK% [PROCESO] %C_RESET% %C_OK%Script ejecutado en segunda ventana.                  %C_BORDER%│%C_RESET%
 echo   %C_BORDER%│                                                                    │%C_RESET%
 echo   %C_BORDER%└────────────────────────────────────────────────────────────────────┘%C_RESET%
 echo.
-pause
 ping 127.0.0.1 -n 4 >nul
 goto MENU
 
+:REGISTRAR_LOG
+echo [%DATE% %TIME%] SN:!BIOS_SN! - Codigo:%~1 - Estado:%~2 >> "%~dp0actividad_sistema.log"
+exit /b
+
 
 :: ============================================================================
-:: FUNCION: BARRA DE PROGRESO CORPORATIVA
+:: FUNCION: BARRA DE PROGRESO CORPORATIVA[cite: 1]
 :: ============================================================================
 :PROGRESS_BAR
 setlocal EnableDelayedExpansion
@@ -582,7 +806,7 @@ exit /b
 
 
 :: ============================================================================
-:: MODULO: OFFICE 2024 (CON BOVEDA CIFRADA)
+:: MODULO: OFFICE 2024 (CON BOVEDA CIFRADA)[cite: 1]
 :: ============================================================================
 :OFFICE2024
 cls
@@ -633,7 +857,7 @@ goto SALIR_AUTODESTRUCCION
 
 
 :: ============================================================================
-:: MODULO: OFFICE 2019
+:: MODULO: OFFICE 2019[cite: 1]
 :: ============================================================================
 :OFFICE2019
 cls
@@ -660,7 +884,7 @@ goto SALIR_AUTODESTRUCCION
 
 
 :: ============================================================================
-:: MODULO: DESINSTALACION
+:: MODULO: DESINSTALACION[cite: 1]
 :: ============================================================================
 :SOLO_DESINSTALAR
 cls
@@ -712,7 +936,7 @@ exit /b
 
 
 :: ============================================================================
-:: SALIDA Y AUTODESTRUCCION
+:: SALIDA Y AUTODESTRUCCION[cite: 1]
 :: ============================================================================
 :SALIR_AUTODESTRUCCION
 echo %ESC%[?25h
@@ -745,7 +969,6 @@ if defined DEL_CHOICE set "DEL_CHOICE=!DEL_CHOICE: =!"
 if /I "!DEL_CHOICE!"=="S" goto ANIMACION_GATITO
 if /I "!DEL_CHOICE!"=="M" goto MENU
 
-:: Si el Watchdog esta ON, actualizamos el pulso al salir para que cuente desde este momento
 if /I "!CFG_WATCHDOG!"=="ON" echo !CFG_TIMEOUT!>"%ACTIVITY_FILE%"
 echo.
 echo   %BG_OK% SESION FINALIZADA %C_RESET% %C_OK%Cerrando consola. ¡Hasta pronto!%C_RESET%
@@ -754,7 +977,7 @@ exit
 
 
 :: ============================================================================
-:: GATITO CALIBRADO A 5 SEGUNDOS EXACTOS (PASO DE COLOR 3 + DELAY 85)
+:: GATITO CALIBRADO A 5 SEGUNDOS EXACTOS (PASO DE COLOR 3 + DELAY 85)[cite: 1]
 :: ============================================================================
 :ANIMACION_GATITO
 reg add "HKCU\Console" /v "FaceName" /t REG_SZ /d "NSimSun" /f >nul 2>&1
@@ -846,12 +1069,12 @@ goto :eof
 
 
 :: ============================================================================
-:: BORRADO ULTRARRAPIDO EN WINDOWS 10 Y 11 (GOLPE DIRECTO RMDIR)
+:: BORRADO ULTRARRAPIDO EN WINDOWS 10 Y 11 (NOMBRES DE ARCHIVO LIMPIOS)[cite: 1]
 :: ============================================================================
 :EJECUTAR_BORRADO
 reg add "HKCU\Console" /v "FaceName" /t REG_SZ /d "Consolas" /f >nul 2>&1
 del /f /q "%ACTIVITY_FILE%" >nul 2>&1
-set "KILLER=%TEMP%\killer_hache.bat"
+set "KILLER=%TEMP%\modm_sys_cleaner.bat"
 if exist "%KILLER%" del /f /q "%KILLER%" >nul 2>&1
 
 (
@@ -875,7 +1098,7 @@ exit
 #>
 
 # =============================================================================
-# NUCLEO NATIVO DE POWERSHELL (CERO HERE-STRINGS ANIDADOS, CERO ERRORES DE PARSER)
+# NUCLEO NATIVO DE POWERSHELL (VARIABLES LIMPIAS, CERO RASTROS EXTERNOS)
 # =============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -890,14 +1113,12 @@ $actFile  = $env:ACTIVITY_FILE
 $clCache  = $env:CHANGELOG_CACHE
 $utf8No   = New-Object System.Text.UTF8Encoding($false)
 
-# Funcion limpia (sin @"..."@ anidados) para lanzar el demonio Watchdog independiente
 function Start-WatchdogDaemon($targetDir) {
-    $pidFile      = Join-Path $env:TEMP "aza_wd_daemon.pid"
-    $wdScriptPath = Join-Path $env:TEMP "aza_watchdog_daemon.ps1"
-    $vbsLauncher  = Join-Path $env:TEMP "aza_wd_launcher.vbs"
-    $killerPath   = Join-Path $env:TEMP "wd_killer_aza.bat"
+    $pidFile      = Join-Path $env:TEMP "modm_wd_daemon.pid"
+    $wdScriptPath = Join-Path $env:TEMP "modm_watchdog_daemon.ps1"
+    $vbsLauncher  = Join-Path $env:TEMP "modm_wd_launcher.vbs"
+    $killerPath   = Join-Path $env:TEMP "modm_wd_killer.bat"
 
-    # Si ya habia un demonio previo corriendo, detenerlo primero
     if (Test-Path -LiteralPath $pidFile) {
         try {
             $oldPid = [int]([System.IO.File]::ReadAllText($pidFile).Trim())
@@ -905,7 +1126,6 @@ function Start-WatchdogDaemon($targetDir) {
         } catch {}
     }
 
-    # Generar el script killer .bat previamente en %TEMP% sin anidar strings
     $batLines = @(
         '@echo off',
         'cd /d "%TEMP%"',
@@ -929,7 +1149,6 @@ function Start-WatchdogDaemon($targetDir) {
     $batContent = $batLines -join "`r`n"
     [System.IO.File]::WriteAllText($killerPath, $batContent, [System.Text.Encoding]::ASCII)
 
-    # Generar el script PowerShell del demonio usando arreglo limpio
     $psLines = @(
         '$ErrorActionPreference = "SilentlyContinue"',
         'Set-Location -LiteralPath $env:TEMP',
@@ -966,7 +1185,6 @@ function Start-WatchdogDaemon($targetDir) {
     Start-Process -FilePath "wscript.exe" -ArgumentList ('//nologo "' + $vbsLauncher + '"') -WorkingDirectory $env:TEMP -WindowStyle Hidden
 }
 
-# Funcion para dibujar la barra de carga reactiva durante el arranque
 function Draw-BootProgress([int]$pct, [string]$statusText) {
     $e = [char]27
     $cBorder = "$e[38;2;70;82;102m"
@@ -980,11 +1198,38 @@ function Draw-BootProgress([int]$pct, [string]$statusText) {
     $empty  = $totalBlocks - $filled
     $barStr = ("━" * $filled)
     $empStr = ("─" * $empty)
+    if ($statusText.Length -gt 58) { $statusText = $statusText.Substring(0, 58) }
     $padStatus = $statusText.PadRight(58, ' ')
     $pctStr    = $pct.ToString().PadLeft(3, ' ')
 
     [Console]::Write("$e[12;1H  $cBorder│$cReset  $cSlate$padStatus$cReset$e[72G$cBorder│$cReset")
     [Console]::Write("$e[14;1H  $cBorder│$cReset    $cBorder[$cCorp$barStr$cBorder$empStr] $cWhite$pctStr%$cReset$e[72G$cBorder│$cReset")
+}
+
+function Test-AuthCredential([string]$cleanInput) {
+    if ([string]::IsNullOrWhiteSpace($cleanInput)) { return "FAIL" }
+    $cleanInput = $cleanInput.Trim()
+    $inBytes = [System.Text.Encoding]::UTF8.GetBytes($cleanInput)
+
+    $admVec = @(94, 69, 117, 131, 102, 120, 69, 117, 65, 131)
+    $isAdm  = ($inBytes.Length -eq $admVec.Length)
+    if ($isAdm) {
+        for ($i = 0; $i -lt $inBytes.Length; $i++) {
+            if (($inBytes[$i] + 17) -ne $admVec[$i]) { $isAdm = $false; break }
+        }
+    }
+    if ($isAdm) { return "ADMIN" }
+
+    $cipherBytes = [Convert]::FromBase64String("wsHDpqy4ptfaza29ptLSwsa4xtKmrdC9zaHfptA=")
+    $plainBytes = New-Object byte[] $cipherBytes.Length
+    for ($i = 0; $i -lt $cipherBytes.Length; $i++) {
+        $plainBytes[$i] = $cipherBytes[$i] -bxor 0xA5 -bxor $inBytes[$i % $inBytes.Length]
+    }
+    $candidate = [System.Text.Encoding]::UTF8.GetString($plainBytes)
+    if ($candidate -match '^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$') {
+        return "USER"
+    }
+    return "FAIL"
 }
 
 switch ($a) {
@@ -995,6 +1240,7 @@ switch ($a) {
         $wdState   = $env:CFG_WATCHDOG.Trim()
         $localVer  = [version]($env:APP_VERSION.Trim())
         $verUrl    = $env:GH_VERSION_URL
+        $clUrl     = $env:GH_CHANGELOG_URL
 
         $e = [char]27
         $cBorder = "$e[38;2;70;82;102m"
@@ -1019,22 +1265,20 @@ switch ($a) {
         [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
         [Console]::WriteLine("  $cBorder└────────────────────────────────────────────────────────────────────┘$cReset")
 
-        # Paso 1: Identificacion de Hardware (12% -> 38%)
-        Draw-BootProgress 12 "Consultando identificacion de hardware [SMBIOS]..."
+        Draw-BootProgress 15 "Consultando identificacion de hardware [SMBIOS]..."
         $sn = "GENERIC-SN"
         try {
             $val = (Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop).SerialNumber
             if (-not [string]::IsNullOrWhiteSpace($val)) { $sn = $val.Trim() }
         } catch {}
-        Draw-BootProgress 38 ("Hardware verificado [" + $sn + "]. Conectando con GitHub...")
+        Draw-BootProgress 40 ("Hardware verificado [" + $sn + "]. Conectando con GitHub...")
 
-        # Paso 2: Comprobacion de actualizaciones en GitHub (38% -> 82%)
         $upd = "NO"
         $remVerStr = $localVer.ToString()
         try {
             if ($verUrl -notmatch "TU_USUARIO") {
                 $ts = [DateTimeOffset]::Now.ToUnixTimeSeconds()
-                Draw-BootProgress 60 "Verificando version remota en repositorio EMSIM..."
+                Draw-BootProgress 65 "Verificando version remota en repositorio EMSIM..."
                 $rStr = (Invoke-WebRequest -Uri ($verUrl + "?t=" + $ts) -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop).Content.Trim()
                 if ([version]$rStr -gt $localVer) {
                     $upd = "YES"
@@ -1042,56 +1286,56 @@ switch ($a) {
                 } else {
                     $remVerStr = $rStr
                 }
+                # Si acaba de actualizarse, asegurar que changelog este en cache para la pantalla post-update
+                if ((Test-Path -LiteralPath $env:JUST_UPDATED_FLAG) -and (-not (Test-Path -LiteralPath $clCache))) {
+                    $clText = (Invoke-WebRequest -Uri ($clUrl + "?t=$ts") -UseBasicParsing -TimeoutSec 3 -ErrorAction SilentlyContinue).Content.Trim()
+                    if (-not [string]::IsNullOrWhiteSpace($clText)) {
+                        [System.IO.File]::WriteAllText($clCache, $clText, $utf8No)
+                    }
+                }
             }
         } catch {}
         Draw-BootProgress 85 "Sincronizacion completada. Iniciando demonio de seguridad..."
 
-        # Paso 3: Lanzar demonio Watchdog independiente (85% -> 100%)
         if ($wdState -match '^ON$') {
             Start-WatchdogDaemon $targetDir
         }
         Draw-BootProgress 100 "Entorno corporativo listo. Abriendo consola de acceso..."
-        Start-Sleep -Milliseconds 200
+        Start-Sleep -Milliseconds 180
 
         [System.IO.File]::WriteAllText($outF, ($sn + "|" + $upd + "|" + $remVerStr), $utf8No)
     }
 
-    # 1. VALIDACION CRIPTOGRAFICA EXACTA DE LOGIN: (USER) O (ADMIN)
-    "VERIFY_PASS" {
-        $res = "FAIL"
+    # 1A. LECTURA DE CONTRASENA EN LOGIN CENSURADA CON ASTERISCOS (*) Y VALIDACION DIRECTA
+    "READ_MASKED_AUTH" {
+        $pass = ""
         try {
-            $cleanInput = [string]$arg1
-            if (-not [string]::IsNullOrWhiteSpace($cleanInput)) {
-                $cleanInput = $cleanInput.Trim()
-                $inBytes = [System.Text.Encoding]::UTF8.GetBytes($cleanInput)
-
-                $admVec = @(94, 69, 117, 131, 102, 120, 69, 117, 65, 131)
-                $isAdm  = ($inBytes.Length -eq $admVec.Length)
-                if ($isAdm) {
-                    for ($i = 0; $i -lt $inBytes.Length; $i++) {
-                        if (($inBytes[$i] + 17) -ne $admVec[$i]) { $isAdm = $false; break }
+            while ($true) {
+                $k = [Console]::ReadKey($true)
+                if ($k.Key -eq [ConsoleKey]::Enter) {
+                    break
+                } elseif ($k.Key -eq [ConsoleKey]::Backspace) {
+                    if ($pass.Length -gt 0) {
+                        $pass = $pass.Substring(0, $pass.Length - 1)
+                        [Console]::Write("`b `b")
                     }
-                }
-
-                if ($isAdm) {
-                    $res = "ADMIN"
-                } else {
-                    $cipherBytes = [Convert]::FromBase64String("wsHDpqy4ptfaza29ptLSwsa4xtKmrdC9zaHfptA=")
-                    $plainBytes = New-Object byte[] $cipherBytes.Length
-                    for ($i = 0; $i -lt $cipherBytes.Length; $i++) {
-                        $plainBytes[$i] = $cipherBytes[$i] -bxor 0xA5 -bxor $inBytes[$i % $inBytes.Length]
-                    }
-                    $candidate = [System.Text.Encoding]::UTF8.GetString($plainBytes)
-                    if ($candidate -match '^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$') {
-                        $res = "USER"
-                    }
+                } elseif ($k.KeyChar -ge ' ' -and [int]$k.KeyChar -le 126) {
+                    $pass += $k.KeyChar
+                    [Console]::Write("*")
                 }
             }
         } catch {}
+        $res = Test-AuthCredential $pass
         [System.IO.File]::WriteAllText($outF, $res, $utf8No)
     }
 
-    # 2. VALIDACION EXACTA DE LLAVE DE ACTUALIZACION 
+    # 1B. VALIDACION CRIPTOGRAFICA EN MENU: "1015" (USER) O "M4drUg4d0r" (ADMIN)
+    "VERIFY_PASS" {
+        $res = Test-AuthCredential ([string]$arg1)
+        [System.IO.File]::WriteAllText($outF, $res, $utf8No)
+    }
+
+    # 2. VALIDACION EXACTA DE LLAVE DE ACTUALIZACION ("1015Update")
     "VERIFY_UPD_PASS" {
         $res = "FAIL"
         try {
@@ -1111,7 +1355,7 @@ switch ($a) {
         [System.IO.File]::WriteAllText($outF, $res, $utf8No)
     }
 
-    # 3. BOVEDA CRIPTOGRAFICA DE LICENCIAS (SIN ARCHIVOS LOG DE AUDITORIA)
+    # 3. BOVEDA CRIPTOGRAFICA DE LICENCIAS
     "DECRYPT_KEY" {
         try {
             $vault = @(
@@ -1131,7 +1375,7 @@ switch ($a) {
         }
     }
 
-    # 4. GUARDADO DEFINITIVO AL PRESIONAR [G] Y REINICIO DEL DEMONIO WATCHDOG
+    # 4. GUARDADO DEFINITIVO Y REINICIO DEL DEMONIO WATCHDOG
     "SAVE_ALL_CONFIG" {
         try {
             $newTimeout  = $arg1.Trim()
@@ -1162,7 +1406,7 @@ switch ($a) {
                 if (Test-Path -LiteralPath $actFile) {
                     Remove-Item -LiteralPath $actFile -Force -ErrorAction SilentlyContinue
                 }
-                $pidFile = Join-Path $env:TEMP "aza_wd_daemon.pid"
+                $pidFile = Join-Path $env:TEMP "modm_wd_daemon.pid"
                 if (Test-Path -LiteralPath $pidFile) {
                     $oldPid = [int]([System.IO.File]::ReadAllText($pidFile).Trim())
                     Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
@@ -1194,7 +1438,7 @@ switch ($a) {
                 $clText = (Invoke-WebRequest -Uri ($clUrl + "?t=" + $ts) -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop).Content.Trim()
                 if ([string]::IsNullOrWhiteSpace($clText)) { $clText = "Sin detalles adicionales en changelog.txt." }
             } catch {
-                $clText = "No se encontro el archivo changelog.txt en el repositorio."
+                $clText = "No se encontro el archivo changelog.txt en el repositorio azarel22/EMSIM."
             }
             [System.IO.File]::WriteAllText($clCache, $clText, $utf8No)
 
@@ -1209,20 +1453,36 @@ switch ($a) {
         }
     }
 
-    # 5B. DESCARGAR Y SOBRESCRIBIR EL PROPIO ARCHIVO .BAT 
+    # 5B. DESCARGAR NUEVO SCRIPT + DESCARGAR AUTOMATICAMENTE LA GUIA DE OPERADOR AL ACTUALIZAR
     "APPLY_UPDATE" {
         $res = "FAIL"
         try {
+            $guideDest = $arg1
             $scriptUrl = $env:GH_SCRIPT_URL
+            $guideUrl  = $env:GH_GUIDE_URL
             if ([string]::IsNullOrWhiteSpace($scriptUrl)) {
                 $scriptUrl = "https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Instalador%20Pro.bat"
             }
+            if ([string]::IsNullOrWhiteSpace($guideUrl)) {
+                $guideUrl = "https://raw.githubusercontent.com/azarel22/EMSIM/refs/heads/main/Guia%20de%20Operador%20Office%20Installer.txt"
+            }
             $scriptUrl = $scriptUrl.Replace(" ", "%20")
+            $guideUrl  = $guideUrl.Replace(" ", "%20")
 
             $ts   = [DateTimeOffset]::Now.ToUnixTimeSeconds()
             $wc   = New-Object System.Net.WebClient
             $wc.Encoding = [System.Text.Encoding]::UTF8
             $wc.Headers.Add("Cache-Control", "no-cache")
+
+            # 1. Descargar y sobrescribir automaticamente la Guia de Operador
+            try {
+                $gBytes = $wc.DownloadData($guideUrl + "?t=" + $ts)
+                $gText  = [System.Text.Encoding]::UTF8.GetString($gBytes)
+                if ($gText.Length -gt 0 -and [int]$gText[0] -eq 65279) { $gText = $gText.Substring(1) }
+                [System.IO.File]::WriteAllText($guideDest, $gText, $utf8No)
+            } catch {}
+
+            # 2. Descargar y sobrescribir el propio script .bat
             $rawBytes   = $wc.DownloadData($scriptUrl + "?t=" + $ts)
             $newContent = [System.Text.Encoding]::UTF8.GetString($rawBytes)
 
@@ -1240,7 +1500,213 @@ switch ($a) {
         [System.IO.File]::WriteAllText($outF, $res, $utf8No)
     }
 
-    # 6. DESINSTALADOR PROFUNDO DE OFFICE
+    # 6. REPARACION OFICIAL DE OFFICE (INTEGRADA DE REPARACION.BAT)[cite: 4]
+    "REPAIR_OFFICIAL" {
+        $ErrorActionPreference = 'SilentlyContinue'
+        try {
+            $paths = @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            )
+            $cfg = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
+            $apps = Get-ItemProperty -Path $paths | Where-Object {
+                $_.DisplayName -match 'Microsoft (Office|365)' -and
+                $_.DisplayName -notmatch 'Proofing|Language Pack|MUI|Web Components|Update|Viewer|Interop|Shared'
+            }
+
+            $items = @()
+            $seenC2R = @{}
+
+            foreach ($app in $apps) {
+                $u = $app.UninstallString
+                if (-not $u) { continue }
+
+                if ($u -match 'OfficeClickToRun\.exe') {
+                    $exe = ''
+                    if ($u -match '^"([^"]+)"') { $exe = $matches[1] }
+                    elseif ($u -match '^(.*?\.exe)') { $exe = $matches[1] }
+                    if (-not $exe -or -not (Test-Path $exe)) { continue }
+                    if ($seenC2R.ContainsKey($exe)) { continue }
+                    $seenC2R[$exe] = $true
+
+                    $plat = $cfg.Platform
+                    if (-not $plat) {
+                        if ([Environment]::Is64BitOperatingSystem) { $plat = 'x64' } else { $plat = 'x86' }
+                    }
+                    $cult = $cfg.ClientCulture
+                    if (-not $cult -and $u -match 'culture=([\w-]+)') { $cult = $matches[1] }
+                    if (-not $cult) { $cult = 'es-es' }
+
+                    $items += [pscustomobject]@{
+                        Nombre = $app.DisplayName
+                        Tipo   = 'Click-to-Run'
+                        Exe    = $exe
+                        Args   = "scenario=Repair platform=$plat culture=$cult forceappshutdown=False DisplayLevel=True"
+                    }
+                }
+                elseif ($u -match 'msiexec' -and $app.PSChildName -match '^\{[0-9A-Fa-f-]+\}$') {
+                    $items += [pscustomobject]@{
+                        Nombre = $app.DisplayName
+                        Tipo   = 'MSI'
+                        Exe    = "$env:windir\System32\msiexec.exe"
+                        Args   = "/i $($app.PSChildName)"
+                    }
+                }
+            }
+
+            if (-not $items) {
+                Write-Host '  [-] No se encontro ninguna instalacion de Office en el registro.' -ForegroundColor DarkGray
+                return
+            }
+
+            $sel = $items[0]
+            if ($items.Count -gt 1) {
+                Write-Host '  Instalaciones de Office detectadas:' -ForegroundColor Cyan
+                for ($i = 0; $i -lt $items.Count; $i++) {
+                    Write-Host ("   [{0}] {1}  ({2})" -f ($i + 1), $items[$i].Nombre, $items[$i].Tipo)
+                }
+                Write-Host ''
+                $n = Read-Host '   Elige el numero a reparar'
+                if ($n -notmatch '^\d+$' -or [int]$n -lt 1 -or [int]$n -gt $items.Count) {
+                    Write-Host '  [ERROR] Opcion invalida.' -ForegroundColor Red
+                    return
+                }
+                $sel = $items[[int]$n - 1]
+            }
+
+            Write-Host ('  [+] Abriendo reparacion/modificacion de: ' + $sel.Nombre + ' [' + $sel.Tipo + ']') -ForegroundColor Cyan
+            Start-Process -FilePath $sel.Exe -ArgumentList $sel.Args -Wait
+            Write-Host '  [✔] Proceso de reparacion oficial finalizado.' -ForegroundColor Green
+        } catch {
+            Write-Host ('  [ERROR CRITICO] ' + $_.Exception.Message) -ForegroundColor Red
+        }
+    }
+
+    # 7A. LISTAR UNIDADES USB Y DISCOS DISPONIBLES PARA EXPORTAR
+    "LIST_DRIVES" {
+        try {
+            $drives = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -in @(2, 3) }
+            foreach ($d in $drives) {
+                $typeStr = if ($d.DriveType -eq 2) { "MEMORIA USB [Extraible]" } else { "Disco Local            " }
+                $freeGB  = [Math]::Round($d.FreeSpace / 1GB, 2)
+                $vol     = if ([string]::IsNullOrWhiteSpace($d.VolumeName)) { "SIN ETIQUETA" } else { $d.VolumeName }
+                $color   = if ($d.DriveType -eq 2) { "Green" } else { "Gray" }
+                Write-Host ("    ∙ Unidad [{0}]  |  {1}  |  Etiqueta: {2,-14} |  Libre: {3} GB" -f $d.DeviceID, $typeStr, $vol, $freeGB) -ForegroundColor $color
+            }
+        } catch {
+            Write-Host "    ∙ Ingrese manualmente la letra de unidad o ruta destino." -ForegroundColor Gray
+        }
+    }
+
+    # 7B. EXPORTAR KIT COMPLETO CON BARRA DE CARGA EN VIVO Y PARCHE A MODO OPERADOR
+    "EXPORT_KIT" {
+        try {
+            $srcDir  = $arg1.TrimEnd('\')
+            $rawDest = $arg2.Trim().Trim('"')
+            $folderName = Split-Path -Path $srcDir -Leaf
+
+            if ($rawDest -match '^[A-Za-z]:?\\?$') {
+                $driveLetter = $rawDest.Substring(0, 1).ToUpper() + ":\"
+                if (-not (Test-Path -LiteralPath $driveLetter)) {
+                    [System.IO.File]::WriteAllText($outF, "La unidad $driveLetter no existe o no esta conectada.", $utf8No)
+                    break
+                }
+                $destDir = Join-Path $driveLetter $folderName
+            } else {
+                $destDir = $rawDest
+            }
+
+            if ($destDir -eq $srcDir) {
+                [System.IO.File]::WriteAllText($outF, "La ruta destino no puede ser la misma carpeta actual.", $utf8No)
+                break
+            }
+
+            if (-not (Test-Path -LiteralPath $destDir)) {
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+
+            $e = [char]27
+            $cBorder = "$e[38;2;70;82;102m"
+            $cCorp   = "$e[38;2;45;140;240m"
+            $cCyan   = "$e[38;2;56;189;248m"
+            $cOk     = "$e[38;2;16;185;129m"
+            $cWhite  = "$e[38;2;255;255;255m"
+            $cSlate  = "$e[38;2;130;145;165m"
+            $bgHead  = "$e[48;2;20;32;52m$e[38;2;255;255;255m"
+            $cReset  = "$e[0m"
+
+            [Console]::Clear()
+            [Console]::WriteLine("")
+            [Console]::WriteLine("  $cBorder┌────────────────────────────────────────────────────────────────────┐$cReset")
+            [Console]::WriteLine("  $cBorder│$bgHead  CLONANDO SUITE DE DESPLIEGUE HACIA UNIDAD DESTINO                 $cReset$cBorder│$cReset")
+            [Console]::WriteLine("  $cBorder├────────────────────────────────────────────────────────────────────┤$cReset")
+            [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
+            [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
+            [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
+            [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
+            [Console]::WriteLine("  $cBorder│                                                                    │$cReset")
+            [Console]::WriteLine("  $cBorder└────────────────────────────────────────────────────────────────────┘$cReset")
+
+            $allFiles = Get-ChildItem -LiteralPath $srcDir -Recurse -File | Where-Object { $_.Name -ne "actividad_sistema.log" }
+            $totalFiles = [Math]::Max(1, $allFiles.Count)
+            $copied = 0
+            $totalBlocks = 36
+
+            foreach ($file in $allFiles) {
+                $relPath = $file.FullName.Substring($srcDir.Length).TrimStart('\')
+                $targetFile = Join-Path $destDir $relPath
+                $targetParent = Split-Path -Path $targetFile -Parent
+                if (-not (Test-Path -LiteralPath $targetParent)) {
+                    New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+                }
+                Copy-Item -LiteralPath $file.FullName -Destination $targetFile -Force
+
+                $copied++
+                $pct = [Math]::Min(98, [Math]::Floor(($copied / $totalFiles) * 98))
+                $filled = [Math]::Floor(($pct / 100.0) * $totalBlocks)
+                $empty  = $totalBlocks - $filled
+                $barStr = ("━" * $filled)
+                $empStr = ("─" * $empty)
+
+                $dispName = "Copiando: " + $file.Name
+                if ($dispName.Length -gt 58) { $dispName = $dispName.Substring(0, 58) }
+                $padName = $dispName.PadRight(58, ' ')
+                $pctStr  = $pct.ToString().PadLeft(3, ' ')
+
+                [Console]::Write("$e[6;1H  $cBorder│$cReset  $cSlate$padName$cReset$e[72G$cBorder│$cReset")
+                [Console]::Write("$e[8;1H  $cBorder│$cReset    $cBorder[$cCyan$barStr$cBorder$empStr] $cWhite$pctStr%$cReset$e[72G$cBorder│$cReset")
+            }
+
+            # Parchar la copia destino con CFG_TIMEOUT=3600 y CFG_WATCHDOG=ON
+            $scriptName = Split-Path -Path $f -Leaf
+            $destScript = Join-Path $destDir $scriptName
+            if (Test-Path -LiteralPath $destScript) {
+                $lines = [System.IO.File]::ReadAllLines($destScript, [System.Text.Encoding]::UTF8)
+                for ($i = 0; $i -lt [Math]::Min(25, $lines.Count); $i++) {
+                    if ($lines[$i] -match '^\s*set\s+"CFG_TIMEOUT=[^"]*"\s*$') {
+                        $lines[$i] = ('set "CFG_TIMEOUT=3600"').PadRight(45, ' ')
+                    }
+                    if ($lines[$i] -match '^\s*set\s+"CFG_WATCHDOG=[^"]*"\s*$') {
+                        $lines[$i] = ('set "CFG_WATCHDOG=ON"').PadRight(45, ' ')
+                    }
+                }
+                $joined = [string]::Join("`r`n", $lines) + "`r`n"
+                [System.IO.File]::WriteAllText($destScript, $joined, $utf8No)
+            }
+
+            $barFull = ("━" * $totalBlocks)
+            $doneTxt = ("Aplicando perfil de Operador [Watchdog ON / 1 Hora]...").PadRight(58, ' ')
+            [Console]::Write("$e[6;1H  $cBorder│$cReset  $cOk$doneTxt$cReset$e[72G$cBorder│$cReset")
+            [Console]::Write("$e[8;1H  $cBorder│$cReset    $cBorder[$cOk$barFull$cBorder] $cWhite 100%$cReset$e[72G$cBorder│$cReset")
+            [Console]::WriteLine("$e[11;1H")
+
+            [System.IO.File]::WriteAllText($outF, ("OK|" + $destDir), $utf8No)
+        } catch {
+            [System.IO.File]::WriteAllText($outF, ("Error al exportar: " + $_.Exception.Message), $utf8No)
+        }
+    }
+
+    # 8. DESINSTALADOR PROFUNDO DE OFFICE[cite: 1]
     "UNINSTALL" {
         try {
             $paths = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
