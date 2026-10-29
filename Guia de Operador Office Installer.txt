@@ -1,0 +1,63 @@
+================================================================================
+           ___   __  __ _             ___         _        _ _         
+          / _ \ / _|/ _(_)__ ___     |_ _|_ _  __| |_ __ _| | |___ _ _ 
+         | (_) |  _|  _| / _/ -_)     | || ' \(_-<  _/ _` | | / -_) '_|          
+          \___/|_| |_| |_\__\___|    |___|_||_/__/\__\__,_|_|_\___|_| 
+                                                              
+                                   MULTIVERSION    
+================================================================================
+
+[+] REQUISITOS PREVIOS
+--------------------------------------------------------------------------------
+- Sistema Operativo: Windows.
+- Permisos: Se requieren privilegios de Administrador. (Se debe dar clic derecho
+  y ejecutar con administrador por que es necesario y Windows lo bloquea).
+- Estructura de Directorios: Para que la instalación funcione, este script 
+  debe encontrarse en la misma ruta base que las carpetas de los binarios:
+    ├── Este_Script.bat
+    ├── Office 2024/
+    │   ├── setup.exe
+    │   └── config.xml
+    └── Office 2019/
+        ├── setup.exe
+        └── Office2019-Basico-OK.xml
+- Preferible para evitar errores copiar toda la carpeta de Office a Descargas y 
+  ejecutar desde ahí
+
+[+] MENÚ PRINCIPAL Y OPCIONES
+--------------------------------------------------------------------------------
+Al ejecutar el sistema, se desplegará un menú interactivo con 4 opciones:
+
+  [1] Instalar Microsoft Office 2024
+      - Ejecuta de forma automática el módulo de desinstalación para limpiar 
+        cualquier rastro previo.
+      - Despliega Office 2024 en segundo plano de forma silenciosa.
+      - Inyecta la clave KMS para dejar el producto activado.
+
+  [2] Instalar Microsoft Office 2019
+      - Ejecuta el módulo de desinstalación previa.
+      - Despliega Office 2019 utilizando la configuración básica predefinida.
+
+  [3] Desinstalar Office
+      - Invoca un módulo interno de PowerShell que analiza directamente el 
+        registro de Windows.
+      - Si detecta instalaciones corruptas o existentes, lanza los 
+        desinstaladores oficiales para una limpieza profunda.
+
+  [4] Salir del sistema (Protocolo de limpieza final)
+      - Invoca la rutina de cierre. Te preguntará si deseas eliminar 
+        permanentemente la carpeta del instalador y todos sus recursos.
+      - [S] = Inicia la purga total, los archivos se borran de raíz sin pasar 
+        por la papelera de reciclaje.
+      - [N] = Cierra el instalador conservando intactos los directorios.
+
+[+] NOTAS IMPORTANTES Y ADVERTENCIAS
+--------------------------------------------------------------------------------
+! BARRAS DE PROGRESO: Durante la instalación verás una barra de progreso en la 
+  consola. El proceso de instalación en segundo plano (setup.exe) puede tardar 
+  unos minutos. Por favor, NO CIERRES la ventana hasta ver el mensaje de "ÉXITO".
+
+! AUTODESTRUCCIÓN: La opción de borrado permanente es agresiva e irreversible. 
+  Asegúrate de no requerir los instaladores para futuros despliegues antes 
+  de teclear 'S'.
+================================================================================
