@@ -7,5 +7,4 @@ NUEVAS CARACTERISTICAS
 ——————————————————————————————————————————————————————
 CORRECCION DE ERRORES
 ——————————————————————————————————————————————————————
-  Desplzamiento de la tabla en el aviso de nueva
-    version
+  Desplazamiento de la tabla en el aviso de nueva version
